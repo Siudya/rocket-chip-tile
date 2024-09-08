@@ -10,6 +10,8 @@ import freechips.rocketchip.subsystem.{CacheBlockBytes, RocketCrossingParams, Sy
 import freechips.rocketchip.tile._
 import freechips.rocketchip.tilelink._
 import circt.stage.{ChiselStage, FirtoolOption}
+import xs.utils.FileRegisters
+import xs.utils.dft._
 
 case object RocketTileParamsKey extends Field[RocketTileParams]
 case object MngParamsKey extends Field[TLSlavePortParameters]
@@ -98,7 +100,11 @@ class RocketTileTop(implicit p:Parameters) extends LazyModule with BindingScope
   ceaseNode :=* tile.ceaseNode
 
   lazy val module = new Impl
-  class Impl extends LazyModuleImp(this) {
+  class Impl extends LazyRawModuleImp(this) with HasIjtag with SimpleDftCore {
+    val mName = "RocketTileTop"
+    val dftParams = SimpleDftParams()
+    childClock := masterClock
+    childReset := masterReset
     val tlm = tlmNode.makeIOs()
     val reset_vector = resetVectorNode.makeIOs()
     val intr_in = intInwardNode.makeIOs()
@@ -109,6 +115,10 @@ class RocketTileTop(implicit p:Parameters) extends LazyModule with BindingScope
     val wfi = wfiNode.makeIOs()
     val halt = haltNode.makeIOs()
     val cease = ceaseNode.makeIOs()
+
+    if(dftInit) {
+      println("DFT logics are inserted")
+    }
   }
 }
 
@@ -129,4 +139,6 @@ object TopMain extends App {
       " disallowExpressionInliningInPorts, disallowMuxInlining"),
     ChiselGeneratorAnnotation(() => tile.module)
   ))
+  xs.utils.dft.FileManager.writeOut("RocketTileTop")
+  FileRegisters.write("build", "RocketTileTop.")
 }
